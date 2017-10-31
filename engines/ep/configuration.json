@@ -91,7 +91,8 @@
                 "enum": [
                     "couchdb",
                     "forestdb",
-                    "rocksdb"
+                    "rocksdb",
+                    "plasma"
                 ]
             }
         },

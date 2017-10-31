@@ -11,8 +11,11 @@ INCLUDE(CMakeDependentOption)
 INCLUDE(CTest)
 
 OPTION(EP_USE_FORESTDB "Enable support for ForestDB" OFF)
+OPTION(EP_USE_PLASMA "Enable support for Plasma" ON)
+
 CMAKE_DEPENDENT_OPTION(EP_USE_ROCKSDB "Enable support for RocksDB" ON
         "ROCKSDB_INCLUDE_DIR;ROCKSDB_LIBRARIES" OFF)
+
 
 INCLUDE_DIRECTORIES(BEFORE ${CMAKE_INSTALL_PREFIX}/include
                            ${CMAKE_CURRENT_SOURCE_DIR}
@@ -50,6 +53,18 @@ IF (EP_USE_ROCKSDB)
     ADD_DEFINITIONS(-DEP_USE_ROCKSDB=1)
     MESSAGE(STATUS "ep-engine: Using RocksDB")
 ENDIF (EP_USE_ROCKSDB)
+
+IF (EP_USE_PLASMA)
+    INCLUDE_DIRECTORIES(AFTER ${PLASMA_INCLUDE_DIR})
+    SET(PLASMA_KVSTORE_SOURCE src/plasma-kvstore/plasma-wrapper.c
+                              src/plasma-kvstore/plasma-kvstore.cc)
+    LIST(APPEND EP_STORAGE_LIBS plasma-core)
+    ADD_DEFINITIONS(-DEP_USE_PLASMA=1)
+    MESSAGE(STATUS "ep-engine: Using Plasma libs at " ${EP_STORAGE_LIBS})
+ELSE (EP_USE_PLASMA)
+    MESSAGE(STATUS "ep-engine: NOT using plasma!!!" ${EP_USE_PLASMA}
+        " dir=" ${PLASMA_CORE_LIB} "include=" ${PLASMA_INCLUDE_DIR})
+ENDIF (EP_USE_PLASMA)
 
 INCLUDE_DIRECTORIES(AFTER SYSTEM
                     ${gtest_SOURCE_DIR}/include
@@ -232,6 +247,7 @@ ADD_LIBRARY(ep_objs OBJECT
             ${COUCH_KVSTORE_SOURCE}
             ${FOREST_KVSTORE_SOURCE}
             ${ROCKSDB_KVSTORE_SOURCE}
+            ${PLASMA_KVSTORE_SOURCE}
             ${COLLECTIONS_SOURCE})
 SET_PROPERTY(TARGET ep_objs PROPERTY POSITION_INDEPENDENT_CODE 1)
 
@@ -239,7 +255,7 @@ ADD_LIBRARY(ep SHARED $<TARGET_OBJECTS:ep_objs>)
 
 SET_TARGET_PROPERTIES(ep PROPERTIES PREFIX "")
 TARGET_LINK_LIBRARIES(ep cJSON JSON_checker ${EP_STORAGE_LIBS}
-                      engine_utilities dirutils cbcompress
+                      engine_utilities dirutils cbcompress sigar
                       mcd_util platform phosphor xattr mcd_tracing
                       ${LIBEVENT_LIBRARIES})
 
@@ -311,7 +327,7 @@ TARGET_INCLUDE_DIRECTORIES(ep-engine_ep_unit_tests
         ${Couchstore_SOURCE_DIR})
 
 TARGET_LINK_LIBRARIES(ep-engine_ep_unit_tests ${EP_STORAGE_LIBS} cJSON
-                      dirutils engine_utilities gtest gmock
+                      dirutils engine_utilities gtest gmock sigar
                       JSON_checker mcd_util mcd_tracing platform phosphor xattr
                       cbcompress ${MALLOC_LIBRARIES})
 
@@ -359,7 +375,7 @@ ADD_EXECUTABLE(ep_engine_benchmarks
                tests/module_tests/vbucket_test.cc)
 
 TARGET_LINK_LIBRARIES(ep_engine_benchmarks benchmark platform xattr
-        cJSON dirutils engine_utilities gtest gmock JSON_checker mcd_util
+        cJSON dirutils engine_utilities gtest gmock JSON_checker mcd_util sigar
         mcd_tracing cbcompress ${MALLOC_LIBRARIES} ${EP_STORAGE_LIBS})
 TARGET_INCLUDE_DIRECTORIES(ep_engine_benchmarks PUBLIC
                            ${benchmark_SOURCE_DIR}/include
@@ -379,7 +395,7 @@ TARGET_LINK_LIBRARIES(timing_tests platform)
 ADD_EXECUTABLE(ep-engine_sizes src/sizes.cc
                                $<TARGET_OBJECTS:ep_objs>)
 TARGET_LINK_LIBRARIES(ep-engine_sizes cJSON JSON_checker
-  engine_utilities ${EP_STORAGE_LIBS} dirutils cbcompress platform mcd_util
+  engine_utilities ${EP_STORAGE_LIBS} dirutils cbcompress platform mcd_util sigar
   mcd_tracing phosphor xattr ${LIBEVENT_LIBRARIES})
 
 ADD_LIBRARY(ep_testsuite SHARED
@@ -391,7 +407,7 @@ ADD_LIBRARY(ep_testsuite SHARED
    ${Memcached_SOURCE_DIR}/utilities/string_utilities.cc)
 SET_TARGET_PROPERTIES(ep_testsuite PROPERTIES PREFIX "")
 TARGET_LINK_LIBRARIES(ep_testsuite engine_utilities ${EP_STORAGE_LIBS} dirutils JSON_checker platform
-                      xattr
+                      xattr sigar
                       ${LIBEVENT_LIBRARIES})
 ADD_DEPENDENCIES(ep_testsuite engine_testapp)
 
@@ -403,7 +419,7 @@ ADD_LIBRARY(ep_testsuite_basic SHARED
    tests/mock/mock_dcp.cc
 )
 SET_TARGET_PROPERTIES(ep_testsuite_basic PROPERTIES PREFIX "")
-TARGET_LINK_LIBRARIES(ep_testsuite_basic engine_utilities JSON_checker dirutils
+TARGET_LINK_LIBRARIES(ep_testsuite_basic engine_utilities JSON_checker dirutils sigar
                       platform ${LIBEVENT_LIBRARIES} ${SNAPPY_LIBRARIES})
 ADD_DEPENDENCIES(ep_testsuite engine_testapp)
 
@@ -415,7 +431,7 @@ tests/ep_test_apis.cc
 tests/mock/mock_dcp.cc
 )
 SET_TARGET_PROPERTIES(ep_testsuite_dcp PROPERTIES PREFIX "")
-TARGET_LINK_LIBRARIES(ep_testsuite_dcp engine_utilities cbcompress JSON_checker dirutils platform ${LIBEVENT_LIBRARIES} ${SNAPPY_LIBRARIES})
+TARGET_LINK_LIBRARIES(ep_testsuite_dcp engine_utilities cbcompress JSON_checker dirutils platform ${LIBEVENT_LIBRARIES} ${SNAPPY_LIBRARIES} sigar)
 ADD_DEPENDENCIES(ep_testsuite_dcp engine_testapp)
 
 ADD_LIBRARY(ep_testsuite_checkpoint SHARED
@@ -424,7 +440,7 @@ ADD_LIBRARY(ep_testsuite_checkpoint SHARED
    tests/ep_test_apis.cc
    src/ext_meta_parser.cc)
 SET_TARGET_PROPERTIES(ep_testsuite_checkpoint PROPERTIES PREFIX "")
-TARGET_LINK_LIBRARIES(ep_testsuite_checkpoint engine_utilities JSON_checker dirutils platform ${LIBEVENT_LIBRARIES} ${SNAPPY_LIBRARIES})
+TARGET_LINK_LIBRARIES(ep_testsuite_checkpoint engine_utilities JSON_checker dirutils platform ${LIBEVENT_LIBRARIES} ${SNAPPY_LIBRARIES} sigar)
 ADD_DEPENDENCIES(ep_testsuite_checkpoint engine_testapp)
 
 ADD_LIBRARY(ep_testsuite_xdcr SHARED
@@ -434,7 +450,7 @@ ADD_LIBRARY(ep_testsuite_xdcr SHARED
    src/ext_meta_parser.cc
    ${Memcached_SOURCE_DIR}/utilities/string_utilities.cc)
 SET_TARGET_PROPERTIES(ep_testsuite_xdcr PROPERTIES PREFIX "")
-TARGET_LINK_LIBRARIES(ep_testsuite_xdcr engine_utilities JSON_checker dirutils platform xattr
+TARGET_LINK_LIBRARIES(ep_testsuite_xdcr engine_utilities JSON_checker dirutils platform xattr sigar
                       ${LIBEVENT_LIBRARIES} ${SNAPPY_LIBRARIES})
 ADD_DEPENDENCIES(ep_testsuite_xdcr engine_testapp)
 

@@ -29,6 +29,9 @@
 #ifdef EP_USE_ROCKSDB
 #include "rocksdb-kvstore/rocksdb-kvstore.h"
 #endif
+#ifdef EP_USE_PLASMA
+#include "plasma-kvstore/plasma-kvstore.h"
+#endif
 #include "kvstore.h"
 #include "kvstore_config.h"
 #include "persistence_callback.h"
@@ -86,6 +89,12 @@ KVStoreRWRO KVStoreFactory::create(KVStoreConfig& config) {
 #ifdef EP_USE_ROCKSDB
     else if (backend == "rocksdb") {
         auto rw = std::make_unique<RocksDBKVStore>(config);
+        return {rw.release(), nullptr};
+    }
+#endif
+#ifdef EP_USE_PLASMA
+    else if (backend == "plasma") {
+        auto rw = std::make_unique<PlasmaKVStore>(config);
         return {rw.release(), nullptr};
     }
 #endif

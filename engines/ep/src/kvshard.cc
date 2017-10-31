@@ -44,6 +44,12 @@ KVShard::KVShard(uint16_t id, KVBucket& kvBucket)
         rwStore = std::move(stores.rw);
     }
 #endif
+#ifdef EP_USE_PLASMA
+    else if (backend == "plasma") {
+        auto stores = KVStoreFactory::create(kvConfig);
+        rwStore = std::move(stores.rw);
+    }
+#endif
     else {
         throw std::logic_error(
                 "KVShard::KVShard: "
