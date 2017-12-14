@@ -224,7 +224,7 @@ PlasmaKVStore::PlasmaKVStore(KVStoreConfig& config)
     {
         LockHolder lh(initGuard);
         if (!plasmaInited) {
-            init_plasma(PLASMA_MEM_QUOTA, false, true, 30, 70, 50, 50, 0);
+            init_plasma(PLASMA_MEM_QUOTA, true, true, 30, 70, 50, 50, 0);
             plasmaInited = true;
             fprintf(stderr, "Initialized plasma kvstore!!!\n");
         }

@@ -603,7 +603,8 @@ bool ExecutorPool::_startWorkers(void) {
 
     if (!numWorkers[WRITER_TASK_IDX]) {
         // MB-12279: Limit writers to 4 for faster bgfetches in DGM by default
-        numWriters = 4;
+        numWriters = 12;
+        numReaders = 16;
     }
 
     _adjustWorkers(READER_TASK_IDX, numReaders);
