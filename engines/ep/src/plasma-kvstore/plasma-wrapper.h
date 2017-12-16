@@ -28,6 +28,8 @@ extern "C" {
 #endif
 
 typedef enum {
+    SuccessUpdate = 1,
+    SuccessInsert = 0,
     Success = 0,
     ErrInitPlasmaNotCalled = -1,
     ErrDbOpen = -2,
@@ -35,7 +37,8 @@ typedef enum {
     ErrHandleNotInUse = -4,
     ErrInsertValue = -5,
     ErrItemNotFound = -6,
-    ErrInternal = -7
+    ErrInternal = -7,
+    ErrValueBufTooSmall = -8
 } wrapper_err_codes_t;
 
 enum {
@@ -51,7 +54,8 @@ void init_plasma(
         const int cleanermax,
         const int delta,
         const int items,
-        const int segments);
+        const int segments,
+        const bool sync);
 int shutdown_plasma();
 int open_plasma(
         const char *dbPath,
