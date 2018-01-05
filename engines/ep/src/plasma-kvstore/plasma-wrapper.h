@@ -31,6 +31,7 @@ typedef enum {
     SuccessUpdate = 1,
     SuccessInsert = 0,
     Success = 0,
+    SuccessSync = 1,
     ErrInitPlasmaNotCalled = -1,
     ErrDbOpen = -2,
     ErrDbNotOpen = -3,
@@ -38,7 +39,9 @@ typedef enum {
     ErrInsertValue = -5,
     ErrItemNotFound = -6,
     ErrInternal = -7,
-    ErrValueBufTooSmall = -8
+    ErrValueBufTooSmall = -8,
+    ErrBackfillQueryNotOpen = -9,
+    ErrBackfillQueryEOF = -10
 } wrapper_err_codes_t;
 
 enum {
@@ -55,14 +58,15 @@ void init_plasma(
         const int delta,
         const int items,
         const int segments,
-        const bool sync);
+        const int sync);
 int shutdown_plasma();
 int open_plasma(
         const char *dbPath,
         const int vbid);
 int close_plasma(
         const int vbid,
-        const int handle_id);
+        const int handle_id,
+        uint64_t *ret_seq_num);
 int insert_kv(
         const int db,
         const int vbid,
@@ -86,6 +90,16 @@ int lookup_kv(
         const int keylen,
         void **value,
         int *valuelen);
+int open_backfill_query(const int vbid, const uint64_t seq_num);
+int close_backfill_query(const int vbid, const int handle_id);
+int next_backfill_query(
+    const int vbid,
+    const int handle_id,
+    void **retkey,
+    int *retkeylen,
+    void **retval,
+    int *retvallen,
+    uint64_t *ret_seq_num);
 void get_stats(
         const int vbid,
         uint64_t *di_memsz,

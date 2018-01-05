@@ -163,7 +163,8 @@ public:
     }
 
     ~KVPlasma() {
-        close_plasma(vbid, plasmaHandleId);
+        uint64_t persistedSeqno;
+        close_plasma(vbid, plasmaHandleId, &persistedSeqno);
     }
 
     int SetOrDel(const std::unique_ptr<PlasmaRequest>& req) {
@@ -224,7 +225,7 @@ PlasmaKVStore::PlasmaKVStore(KVStoreConfig& config)
     {
         LockHolder lh(initGuard);
         if (!plasmaInited) {
-            init_plasma(PLASMA_MEM_QUOTA, false, true, 30, 70, 50, 50, 0, true);
+            init_plasma(PLASMA_MEM_QUOTA, false, true, 30, 70, 50, 50, 1, 0);
             plasmaInited = true;
             fprintf(stderr, "Initialized plasma kvstore!!!\n");
         }
@@ -472,7 +473,8 @@ bool PlasmaKVStore::snapshotVBucket(uint16_t vbucketId,
         (options == VBStatePersist::VBSTATE_PERSIST_WITHOUT_COMMIT ||
          options == VBStatePersist::VBSTATE_PERSIST_WITH_COMMIT)) {
         int handleId = open_plasma(plasmaPath.c_str(), vbucketId);
-        close_plasma(vbucketId, handleId);
+        uint64_t persistedSeqno;
+        close_plasma(vbucketId, handleId, &persistedSeqno);
         /*
         auto& db = openDB(vbucketId);
         if (!saveVBState(db, vbstate).ok()) {
@@ -670,7 +672,7 @@ ScanContext* PlasmaKVStore::initScanContext(
 }
 
 scan_error_t PlasmaKVStore::scan(ScanContext* ctx) {
-    if (!ctx) {
+	if (!ctx) {
         return scan_failed;
     }
 
@@ -678,7 +680,6 @@ scan_error_t PlasmaKVStore::scan(ScanContext* ctx) {
         return scan_success;
     }
 
-    /*
     auto startSeqno = ctx->startSeqno;
     if (ctx->lastReadSeqno != 0) {
         startSeqno = ctx->lastReadSeqno + 1;
@@ -687,7 +688,70 @@ scan_error_t PlasmaKVStore::scan(ScanContext* ctx) {
     GetMetaOnly isMetaOnly = ctx->valFilter == ValueFilter::KEYS_ONLY
                                      ? GetMetaOnly::Yes
                                      : GetMetaOnly::No;
-    */
+
+	int bfillHandle = open_backfill_query(ctx->vbid, startSeqno);
+
+    if (!bfillHandle) {
+        throw std::logic_error(
+                "PlasmaKVStore::scan: plasma backfill query start fail!");
+    }
+
+	char keyBuf[200]; // TODO: Find a way to have Plasma allocate memory
+	void *Key = &keyBuf;
+	int keyLen;
+	char valueBuf[2048]; // TODO: Find a way to have Plasma to allocate memory
+	void *value = &valueBuf;
+	int valueLen;
+	uint64_t seqNo;
+
+	while (true) {
+	    int err = next_backfill_query(ctx->vbid, bfillHandle, &Key, &keyLen,
+				&value, &valueLen, &seqNo);
+		if (err) {
+		    if (err == ErrBackfillQueryEOF) {
+		        break;
+		    }
+			throw std::logic_error(
+                "PlasmaKVStore::scan: plasma backfill query next fail!");
+		}
+		DocKey key(reinterpret_cast<const uint8_t*>(Key), keyLen,
+				DocNamespace::DefaultCollection);
+
+		std::string valStr(reinterpret_cast<char *>(value), valueLen);
+        std::unique_ptr<Item> itm =
+                makeItem(ctx->vbid, key, valStr, isMetaOnly);
+		bool includeDeletes =
+                (ctx->docFilter == DocumentFilter::NO_DELETES) ? false : true;
+        bool onlyKeys =
+                (ctx->valFilter == ValueFilter::KEYS_ONLY) ? true : false;
+
+		if (!includeDeletes && itm->isDeleted()) {
+            continue;
+        }
+        int64_t byseqno = seqNo;
+        CacheLookup lookup(key, byseqno, ctx->vbid);
+        ctx->lookup->callback(lookup);
+
+        int status = ctx->lookup->getStatus();
+
+        if (status == ENGINE_KEY_EEXISTS) {
+            ctx->lastReadSeqno = byseqno;
+            continue;
+        } else if (status == ENGINE_ENOMEM) {
+            return scan_again;
+        }
+
+        GetValue rv(std::move(itm), ENGINE_SUCCESS, -1, onlyKeys);
+        ctx->callback->callback(rv);
+        status = ctx->callback->getStatus();
+
+        if (status == ENGINE_ENOMEM) {
+            return scan_again;
+        }
+
+        ctx->lastReadSeqno = byseqno;
+	}
+	close_backfill_query(ctx->vbid, bfillHandle);
 
     return scan_success;
 }

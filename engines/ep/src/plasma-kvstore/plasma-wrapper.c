@@ -20,7 +20,7 @@ init_plasma(const uint64_t memQuota,
         const int delta,
         const int items,
         const int segments,
-        const bool sync)
+        const int sync)
 {
     GoUint64 mq = memQuota;
     GoUint8 di = dio;
@@ -30,7 +30,7 @@ init_plasma(const uint64_t memQuota,
     GoInt32 dl = delta;
     GoInt32 it = items;
     GoInt32 seg = segments;
-    GoUint8 s = sync;
+    GoInt32 s = sync;
 
     InitPlasma(mq, di, kvsep, cl, clmax, dl, it, seg, s);
 }
@@ -64,17 +64,21 @@ open_plasma(const char *dbPath, const int vbid)
 }
 
 int
-close_plasma(const int vbid, const int handle_id)
+close_plasma(const int vbid, const int handle_id, uint64_t *ret_seq_num)
 {
     GoInt vBucketId = (GoInt)vbid;
     GoInt plasma_handle = (GoInt)handle_id;
     GoInt perr;
+    GoUint64 retSeqNum;
 
-    perr = ClosePlasma(vBucketId, plasma_handle);
+    perr = ClosePlasma(vBucketId, plasma_handle, &retSeqNum);
     if (debug) {
         fprintf(stderr, "ClosePlasma(%d, %d) %d\n",
                 (int)vBucketId, (int)plasma_handle, (int)perr);
     }
+
+    *ret_seq_num = (uint64_t)retSeqNum;
+
     return (int)perr;
 }
 
@@ -201,4 +205,64 @@ get_stats(const int vbid,
     *st_reclaimpending = (uint64_t)psr.r10;
 
     return;
+}
+
+int
+open_backfill_query(const int vbid, const uint64_t seq_num)
+{
+    GoInt vBucketId;
+    GoInt plasma_handle;
+    GoUint64 goseq;
+
+    vBucketId = (GoInt)vbid;
+    goseq = (GoUint64)seq_num;
+
+    plasma_handle = OpenBackfillQuery(vBucketId, goseq);
+    if (debug) {
+        fprintf(stderr, "OpenPlasma(%d) %d\n", (int)vBucketId, (int)plasma_handle);
+    }
+    return (int)plasma_handle;
+}
+
+int
+close_backfill_query(const int vbid, const int handle_id)
+{
+    GoInt vBucketId = (GoInt)vbid;
+    GoInt plasma_handle = (GoInt)handle_id;
+    GoInt perr;
+
+    perr = CloseBackfillQuery(vBucketId, plasma_handle);
+    if (debug) {
+        fprintf(stderr, "CloseBackfillQuery(%d, %d) %d\n",
+                (int)vBucketId, (int)plasma_handle, (int)perr);
+    }
+    return (int)perr;
+}
+
+int
+next_backfill_query(
+        const int vbid,
+        const int handle_id,
+        void **retkey,
+        int *retkeylen,
+        void **retval,
+        int *retvallen,
+        uint64_t *ret_seq_num)
+{
+    GoInt vBucketId = (GoInt)vbid;
+    GoInt plasma_handle = (GoInt)handle_id;
+    GoInt keyLen, valueLen;
+    GoUint64 seqNum;
+    GoInt ret;
+
+    keyLen = (GoInt)*retkeylen;
+    valueLen = (GoInt)*retvallen;
+
+    ret = NextBackfillQuery(vBucketId, plasma_handle, retkey, &keyLen, retval, &valueLen, &seqNum);
+
+    *retkeylen = (int)keyLen;
+    *retvallen = (int)valueLen;
+    *ret_seq_num = (uint64_t)seqNum;
+
+    return (int)ret;
 }
