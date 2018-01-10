@@ -205,12 +205,6 @@ public:
 
     void destroyScanContext(ScanContext* ctx) override;
 
-    bool persistCollectionsManifestItem(uint16_t vbid,
-                                        const Item& manifestItem) override {
-        // TODO DJR 2017-05-19 implement this.
-        return false;
-    }
-
     std::string getCollectionsManifest(uint16_t vbid) override {
         // TODO DJR 2017-05-19 implement this.
         return "";
@@ -284,7 +278,6 @@ private:
             const std::vector<std::unique_ptr<PlasmaRequest>>& commitBatch);
 
     void commitCallback(
-            KVStatsCtx& statsCtx,
             int status,
             const std::vector<std::unique_ptr<PlasmaRequest>>& commitBatch);
 

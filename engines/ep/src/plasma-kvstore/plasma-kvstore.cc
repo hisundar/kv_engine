@@ -298,8 +298,6 @@ bool PlasmaKVStore::commit(const Item* collectionsManifest) {
 
     bool success = true;
     auto vbid = commitBatch[0]->getVBucketId();
-    KVStatsCtx statsCtx(configuration);
-    statsCtx.vbucket = vbid;
 
     // Flush all documents to disk
     auto status = saveDocs(vbid, collectionsManifest, commitBatch);
@@ -312,7 +310,7 @@ bool PlasmaKVStore::commit(const Item* collectionsManifest) {
         success = false;
     }
 
-    commitCallback(statsCtx, status, commitBatch);
+    commitCallback(status, commitBatch);
 
     // This behaviour is to replicate the one in Couchstore.
     // Set `in_transanction = false` only if `commit` is successful.
@@ -325,7 +323,6 @@ bool PlasmaKVStore::commit(const Item* collectionsManifest) {
 }
 
 void PlasmaKVStore::commitCallback(
-        KVStatsCtx& kvctx,
         int status,
         const std::vector<std::unique_ptr<PlasmaRequest>>& commitBatch) {
     for (const auto& req : commitBatch) {
