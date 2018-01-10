@@ -212,7 +212,7 @@ public:
 
 static std::mutex initGuard;
 static bool plasmaInited;
-static const uint64_t PLASMA_MEM_QUOTA = (uint64_t(12)*1024*1024*1024); // 12GB
+static const uint64_t PLASMA_MEM_QUOTA = (uint64_t(16)*1024*1024*1024); // 16GB
 
 PlasmaKVStore::PlasmaKVStore(KVStoreConfig& config)
     : KVStore(config),
@@ -225,7 +225,7 @@ PlasmaKVStore::PlasmaKVStore(KVStoreConfig& config)
     {
         LockHolder lh(initGuard);
         if (!plasmaInited) {
-            init_plasma(PLASMA_MEM_QUOTA, false, true, 30, 70, 50, 50, 1, 0);
+            init_plasma(PLASMA_MEM_QUOTA, false, true, 30, 70, 50, 50, 0, 0);
             plasmaInited = true;
             fprintf(stderr, "Initialized plasma kvstore!!!\n");
         }
@@ -686,11 +686,16 @@ scan_error_t PlasmaKVStore::scan(ScanContext* ctx) {
                                      ? GetMetaOnly::Yes
                                      : GetMetaOnly::No;
 
+	logger.log(EXTENSION_LOG_WARNING,
+			"PlasmaKVStore::scan from start seqno %zu to %zu on vb %d",
+			startSeqno, ctx->maxSeqno, ctx->vbid);
+
 	int bfillHandle = open_backfill_query(ctx->vbid, startSeqno);
 
-    if (!bfillHandle) {
-        throw std::logic_error(
-                "PlasmaKVStore::scan: plasma backfill query start fail!");
+    if (bfillHandle < 0) {
+		char errbf[256];
+		sprintf(errbf, "PlasmaKVStore::scan: plasma backfill query fail! err=%d vbid=%d, startseqno=%zu", bfillHandle, ctx->vbid, startSeqno);
+        throw std::logic_error(errbf);
     }
 
 	char keyBuf[200]; // TODO: Find a way to have Plasma allocate memory
