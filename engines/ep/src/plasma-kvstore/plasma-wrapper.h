@@ -58,7 +58,8 @@ void init_plasma(
         const int delta,
         const int items,
         const int segments,
-        const int sync);
+        const int sync,
+        const bool upsert);
 int shutdown_plasma();
 int open_plasma(
         const char *dbPath,

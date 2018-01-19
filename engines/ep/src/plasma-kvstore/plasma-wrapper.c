@@ -20,7 +20,8 @@ init_plasma(const uint64_t memQuota,
         const int delta,
         const int items,
         const int segments,
-        const int sync)
+        const int sync,
+        const bool upsert)
 {
     GoUint64 mq = memQuota;
     GoUint8 di = dio;
@@ -31,8 +32,9 @@ init_plasma(const uint64_t memQuota,
     GoInt32 it = items;
     GoInt32 seg = segments;
     GoInt32 s = sync;
+    GoUint8 u = upsert;
 
-    InitPlasma(mq, di, kvsep, cl, clmax, dl, it, seg, s);
+    InitPlasma(mq, di, kvsep, cl, clmax, dl, it, seg, s, u);
 }
 
 int
