@@ -57,6 +57,17 @@ KVStoreConfig::KVStoreConfig(Configuration& config, uint16_t shardid)
             config.getRocksdbDefaultCfOptimizeCompaction();
     rocksdbSeqnoCfOptimizeCompaction =
             config.getRocksdbSeqnoCfOptimizeCompaction();
+
+	plasmaMemQuota = uint64_t(config.getPlasmaMemQuota());
+	plasmaEnableDirectio = config.isPlasmaEnableDirectio();
+	plasmaKvSeparation = config.isPlasmaKvSeparation();
+	plasmaLssCleanThreshold = config.getPlasmaLssCleanThreshold();
+	plasmaLssCleanMax = config.getPlasmaLssCleanMax();
+	plasmaDeltaChainLen = config.getPlasmaDeltaChainLen();
+	plasmaBasePageItems = config.getPlasmaBasePageItems();
+	plasmaLssNumSegments = config.getPlasmaLssNumSegments();
+	plasmaSyncAt = config.getPlasmaSyncAt();
+	plasmaEnableUpsert = config.isPlasmaEnableUpsert();
 }
 
 KVStoreConfig::KVStoreConfig(uint16_t _maxVBuckets,

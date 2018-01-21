@@ -181,6 +181,37 @@ public:
         return rocksdbSeqnoCfOptimizeCompaction;
     }
 
+	uint64_t getPlasmaMemQuota() {
+		return plasmaMemQuota;
+	}
+	bool isPlasmaEnableDirectio() {
+		return plasmaEnableDirectio;
+	}
+	bool isPlasmaKvSeparation() {
+		return plasmaKvSeparation;
+	}
+	int getPlasmaLssCleanThreshold() {
+		return plasmaLssCleanThreshold;
+	}
+	int getPlasmaLssCleanMax() {
+		return plasmaLssCleanMax;
+	}
+	int getPlasmaDeltaChainLen() {
+		return plasmaDeltaChainLen;
+	}
+	int getPlasmaBasePageItems() {
+		return plasmaBasePageItems;
+	}
+	int getPlasmaLssNumSegments() {
+		return plasmaLssNumSegments;
+	}
+	int getPlasmaSyncAt() {
+		return plasmaSyncAt;
+	}
+	bool isPlasmaEnableUpsert() {
+		return plasmaEnableUpsert;
+	}
+
 private:
     class ConfigChangeListener;
 
@@ -233,4 +264,34 @@ private:
 
     // RocksDB flag to enable Compaction Optimization for the 'seqno' CF
     std::string rocksdbSeqnoCfOptimizeCompaction;
+
+	// Plasma Memory Quota
+	size_t plasmaMemQuota;
+
+	// Plasma Enable Direct I/O
+	bool plasmaEnableDirectio;
+
+	// Plasma Enable Key Value Separation
+	bool plasmaKvSeparation;
+
+	// Plasma LSS Clean Fragmentation
+	size_t plasmaLssCleanThreshold;
+
+	// Plasma LSS Clean Throtle
+	size_t plasmaLssCleanMax;
+
+	// Plasma delta chain len
+	size_t plasmaDeltaChainLen;
+
+	// Plasma base page len
+	size_t plasmaBasePageItems;
+
+	// Plasma LSS Num Segments
+	size_t plasmaLssNumSegments;
+
+	// Plasma Sync at ms
+	size_t plasmaSyncAt;
+
+	// Plasma enable upsert
+	bool plasmaEnableUpsert;
 };

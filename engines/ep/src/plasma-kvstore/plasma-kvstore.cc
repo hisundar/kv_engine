@@ -212,7 +212,6 @@ public:
 
 static std::mutex initGuard;
 static bool plasmaInited;
-static const uint64_t PLASMA_MEM_QUOTA = (uint64_t(16)*1024*1024*1024); // 16GB
 
 PlasmaKVStore::PlasmaKVStore(KVStoreConfig& config)
     : KVStore(config),
@@ -225,9 +224,40 @@ PlasmaKVStore::PlasmaKVStore(KVStoreConfig& config)
     {
         LockHolder lh(initGuard);
         if (!plasmaInited) {
-            init_plasma(PLASMA_MEM_QUOTA, false, true, 30, 70, 50, 50, 0, 0, true);
+			uint64_t memQuota = uint64_t(configuration.getPlasmaMemQuota());
+			memQuota *= (1024 * 1024); // Input is in MB, convert to bytes
+			bool directIo = configuration.isPlasmaEnableDirectio();
+			bool kvSeparate = configuration.isPlasmaKvSeparation();
+			int lssCleanAtFrag = configuration.getPlasmaLssCleanThreshold();
+			int lssCleanMax = configuration.getPlasmaLssCleanMax();
+			int deltaChainLen = configuration.getPlasmaDeltaChainLen();
+			int basePageLen = configuration.getPlasmaBasePageItems();
+			int lssNumSegs = configuration.getPlasmaLssNumSegments();
+			int syncAt = configuration.getPlasmaSyncAt();
+			bool upsert = configuration.isPlasmaEnableUpsert();
+
+            init_plasma(memQuota,
+					directIo,
+					kvSeparate,
+					lssCleanAtFrag,
+					lssCleanMax,
+					deltaChainLen,
+					basePageLen,
+					lssNumSegs,
+					syncAt,
+					upsert);
             plasmaInited = true;
-            fprintf(stderr, "Initialized plasma kvstore!!!\n");
+            fprintf(stderr, "Initialized plasma kvstore..\n");
+            fprintf(stderr, "MemQuota = %zu\n", memQuota);
+            fprintf(stderr, "DirectIO (%s)\n", directIo ? "yes" : "no");
+            fprintf(stderr, "KV Separation (%s)\n", kvSeparate ? "yes" : "no");
+            fprintf(stderr, "LSS clean at %d\n", lssCleanAtFrag);
+            fprintf(stderr, "LSS throttle at %d\n", lssCleanMax);
+            fprintf(stderr, "Delta Chain Len %d\n", deltaChainLen);
+            fprintf(stderr, "Base Page Len %d\n", basePageLen);
+            fprintf(stderr, "LSS Num Segments %d\n", lssNumSegs);
+            fprintf(stderr, "Sync at %d milliseconds\n", syncAt);
+            fprintf(stderr, "Upsert (%s)\n", upsert ? "yes" : "no");
         }
     }
     cachedVBStates.resize(configuration.getMaxVBuckets());
