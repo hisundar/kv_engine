@@ -180,11 +180,22 @@ public:
         /* TODO: Send in the slices of plasma meta & value to avoid memcpy */
         std::memcpy(&big_bad_buf[0], &req->getDocMeta(),
                     sizeof(plasmakv::MetaData));
+		auto valSz = req->getBodySize();
+		if (valSz > 3000) {
+			fprintf(stderr, "FATAL-TOO-BIG-VALUE: val size = %zu\n",
+					req->getBodySize());
+			valSz = 3000;
+		}
+        if (req->getBySeqno() == 0) {
+			fprintf(stderr, "FATAL-ZERO-SEQNUM-IN-INSERT: val size = %zu\n",
+					req->getBodySize());
+            throw std::logic_error("ZERO SEQNUM SHOULD NOT EXIST!!");
+        }
         std::memcpy(&big_bad_buf[sizeof(plasmakv::MetaData)], req->getBodyData(),
-                    req->getBodySize());
+                    valSz);
         int ret = insert_kv(Plasma_KVengine, vbid, plasmaHandleId,
                 req->getKeyData(), req->getKeyLen(),
-                &big_bad_buf[0], req->getBodySize() + sizeof(plasmakv::MetaData),
+                &big_bad_buf[0], valSz + sizeof(plasmakv::MetaData),
                 req->getBySeqno());
 		if (ret < 0) {
 			return ret;
@@ -197,17 +208,18 @@ public:
 
     int Get(const DocKey &key, void **value, int *valueLen) {
 		*value = &big_bad_buf;
+        *valueLen = sizeof(big_bad_buf);
         int ret = lookup_kv(Plasma_KVengine, vbid, plasmaHandleId,
                 key.data(), key.size(), value, valueLen);
-		if (ret != *valueLen) {
-			return ret;
+		if (ret) {
+			fprintf(stderr, "FATAL-PLASMA-LOOKUP-ERROR: %d\n", ret);
 		}
-		return 0;
+		return ret;
     }
 
     uint16_t vbid;
     int plasmaHandleId;
-    char big_bad_buf[2048];
+    char big_bad_buf[3072];
 };
 
 static std::mutex initGuard;
@@ -730,19 +742,22 @@ scan_error_t PlasmaKVStore::scan(ScanContext* ctx) {
 
 	char keyBuf[200]; // TODO: Find a way to have Plasma allocate memory
 	void *Key = &keyBuf;
-	int keyLen;
-	char valueBuf[2048]; // TODO: Find a way to have Plasma to allocate memory
+	int keyLen = sizeof(keyBuf);
+	char valueBuf[3072]; // TODO: Find a way to have Plasma to allocate memory
 	void *value = &valueBuf;
-	int valueLen;
+	int valueLen = sizeof(valueBuf);
 	uint64_t seqNo;
 
 	while (true) {
+		keyLen = sizeof(keyBuf); // reset back for every query call
+		valueLen = sizeof(valueBuf);
 	    int err = next_backfill_query(ctx->vbid, bfillHandle, &Key, &keyLen,
 				&value, &valueLen, &seqNo);
 		if (err) {
 		    if (err == ErrBackfillQueryEOF) {
 		        break;
 		    }
+			fprintf(stderr, "FATAL-PLASMA-BACKFILL-ERROR: %d\n", err);
 			throw std::logic_error(
                 "PlasmaKVStore::scan: plasma backfill query next fail!");
 		}
