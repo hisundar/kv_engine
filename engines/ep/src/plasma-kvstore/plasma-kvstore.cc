@@ -761,6 +761,9 @@ scan_error_t PlasmaKVStore::scan(ScanContext* ctx) {
 			throw std::logic_error(
                 "PlasmaKVStore::scan: plasma backfill query next fail!");
 		}
+        if (seqNo > ctx->maxSeqno) { // don't return sequence numbers out of snapshot
+            continue;
+        }
 		DocKey key(reinterpret_cast<const uint8_t*>(Key), keyLen,
 				DocNamespace::DefaultCollection);
 
