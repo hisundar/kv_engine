@@ -755,13 +755,16 @@ scan_error_t PlasmaKVStore::scan(ScanContext* ctx) {
 				&value, &valueLen, &seqNo);
 		if (err) {
 		    if (err == ErrBackfillQueryEOF) {
+			logger.log(EXTENSION_LOG_WARNING,
+					"BACKFILL complete for vb %d: max seqno %zu\n",
+					ctx->vbid, ctx->maxSeqno);
 		        break;
 		    }
 			fprintf(stderr, "FATAL-PLASMA-BACKFILL-ERROR: %d\n", err);
 			throw std::logic_error(
                 "PlasmaKVStore::scan: plasma backfill query next fail!");
 		}
-        if (seqNo > ctx->maxSeqno) { // don't return sequence numbers out of snapshot
+        if (int64_t(seqNo) > ctx->maxSeqno) { // don't return sequence numbers out of snapshot
             continue;
         }
 		DocKey key(reinterpret_cast<const uint8_t*>(Key), keyLen,
@@ -788,6 +791,9 @@ scan_error_t PlasmaKVStore::scan(ScanContext* ctx) {
             ctx->lastReadSeqno = byseqno;
             continue;
         } else if (status == ENGINE_ENOMEM) {
+			logger.log(EXTENSION_LOG_WARNING,
+					"BACKFILL scan-again: cache lookup ENOMEM: %zu %zu %d\n",
+					startSeqno, ctx->maxSeqno, ctx->vbid);
             return scan_again;
         }
 
@@ -796,6 +802,9 @@ scan_error_t PlasmaKVStore::scan(ScanContext* ctx) {
         status = ctx->callback->getStatus();
 
         if (status == ENGINE_ENOMEM) {
+			logger.log(EXTENSION_LOG_WARNING,
+					"BACKFILL scan-again: value callback ENOMEM: %zu %zu %d\n",
+					startSeqno, ctx->maxSeqno, ctx->vbid);
             return scan_again;
         }
 
