@@ -794,6 +794,7 @@ scan_error_t PlasmaKVStore::scan(ScanContext* ctx) {
 			logger.log(EXTENSION_LOG_WARNING,
 					"BACKFILL scan-again: cache lookup ENOMEM: %zu %zu %d\n",
 					startSeqno, ctx->maxSeqno, ctx->vbid);
+            close_backfill_query(ctx->vbid, bfillHandle);
             return scan_again;
         }
 
@@ -805,6 +806,7 @@ scan_error_t PlasmaKVStore::scan(ScanContext* ctx) {
 			logger.log(EXTENSION_LOG_WARNING,
 					"BACKFILL scan-again: value callback ENOMEM: %zu %zu %d\n",
 					startSeqno, ctx->maxSeqno, ctx->vbid);
+            close_backfill_query(ctx->vbid, bfillHandle);
             return scan_again;
         }
 
