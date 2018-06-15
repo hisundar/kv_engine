@@ -10,8 +10,11 @@ INCLUDE(CheckTypeSize)
 INCLUDE(CMakeDependentOption)
 INCLUDE(CTest)
 
+OPTION(EP_USE_MAGMA "Enable support for Magma" ON)
+
 CMAKE_DEPENDENT_OPTION(EP_USE_ROCKSDB "Enable support for RocksDB" ON
         "ROCKSDB_INCLUDE_DIR;ROCKSDB_LIBRARIES" OFF)
+
 
 INCLUDE_DIRECTORIES(BEFORE ${CMAKE_INSTALL_PREFIX}/include
                            ${CMAKE_CURRENT_SOURCE_DIR}
@@ -47,6 +50,19 @@ IF (EP_USE_ROCKSDB)
     ADD_DEFINITIONS(-DEP_USE_ROCKSDB=1)
     MESSAGE(STATUS "ep-engine: Using RocksDB")
 ENDIF (EP_USE_ROCKSDB)
+
+IF (EP_USE_MAGMA)
+    INCLUDE_DIRECTORIES(AFTER ${MAGMA_INCLUDE_DIR})
+    SET(MAGMA_KVSTORE_SOURCE src/magma-kvstore/magma-wrapper.c
+                             src/magma-kvstore/magma-kvstore.cc
+                             src/magma-kvstore/magma-kvstore_config.cc)
+    LIST(APPEND EP_STORAGE_LIBS magma)
+    ADD_DEFINITIONS(-DEP_USE_MAGMA=1)
+    MESSAGE(STATUS "ep-engine: Using Magma libs at " ${EP_STORAGE_LIBS})
+ELSE (EP_USE_MAGMA)
+    MESSAGE(STATUS "ep-engine: NOT using magma!!!" ${EP_USE_MAGMA}
+        " dir=" ${MAGMA_CORE_LIB} "include=" ${MAGMA_INCLUDE_DIR})
+ENDIF (EP_USE_MAGMA)
 
 INCLUDE_DIRECTORIES(AFTER SYSTEM
                     ${gtest_SOURCE_DIR}/include
@@ -251,6 +267,7 @@ ADD_LIBRARY(ep_objs OBJECT
             ${CONFIG_SOURCE}
             ${COUCH_KVSTORE_SOURCE}
             ${ROCKSDB_KVSTORE_SOURCE}
+            ${MAGMA_KVSTORE_SOURCE}
             ${COLLECTIONS_SOURCE})
 SET_PROPERTY(TARGET ep_objs PROPERTY POSITION_INDEPENDENT_CODE 1)
 add_sanitizers(ep_objs)

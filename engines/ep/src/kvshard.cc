@@ -28,6 +28,9 @@
 #ifdef EP_USE_ROCKSDB
 #include "rocksdb-kvstore/rocksdb-kvstore_config.h"
 #endif
+#ifdef EP_USE_MAGMA
+#include "magma-kvstore/magma-kvstore_config.h"
+#endif
 
 /* [EPHE TODO]: Consider not using KVShard for ephemeral bucket */
 KVShard::KVShard(uint16_t id, Configuration& config)
@@ -42,6 +45,13 @@ KVShard::KVShard(uint16_t id, Configuration& config)
 #ifdef EP_USE_ROCKSDB
     else if (backend == "rocksdb") {
         kvConfig = std::make_unique<RocksDBKVStoreConfig>(config, id);
+        auto stores = KVStoreFactory::create(*kvConfig);
+        rwStore = std::move(stores.rw);
+    }
+#endif
+#ifdef EP_USE_MAGMA
+    else if (backend == "magma") {
+        kvConfig = std::make_unique<MagmaKVStoreConfig>(config, id);
         auto stores = KVStoreFactory::create(*kvConfig);
         rwStore = std::move(stores.rw);
     }
